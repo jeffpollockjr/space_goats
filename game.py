@@ -3,14 +3,17 @@ from cards import build_starter_deck, build_market_pile
 
 HAND_SIZE = 5
 MARKET_DISPLAY_SIZE = 3
+STARTER_SHIP_SHIELDED_SIDE = "starter_ship_shielded_side"
+STARTER_SHIP_UNSHIELDED_SIDE = "starter_ship_unshielded_side"
 
 
 class Ship:
-    """A single ship with an optional assigned shield card."""
+    """A single ship with optional assigned shield and starter-side state."""
 
-    def __init__(self):
+    def __init__(self, starter_side=STARTER_SHIP_UNSHIELDED_SIDE):
         self.shield = None
         self.shield_hp = 0
+        self.starter_side = starter_side
 
     def has_shield(self):
         return self.shield is not None
@@ -35,16 +38,26 @@ class Ship:
         self.shield = None
         self.shield_hp = 0
 
+    def is_on_starter_shielded_side(self):
+        return self.starter_side == STARTER_SHIP_SHIELDED_SIDE
+
+    def flip_starter_shield_side(self):
+        if not self.is_on_starter_shielded_side():
+            return False
+        self.starter_side = STARTER_SHIP_UNSHIELDED_SIDE
+        return True
+
     def __repr__(self):
+        side = "starter-shielded" if self.is_on_starter_shielded_side() else "starter-unshielded"
         if self.shield:
-            return f"[Ship: shield={self.shield['name']} hp={self.shield_hp}]"
-        return "[Ship: no shield]"
+            return f"[Ship: {side}, shield={self.shield['name']} hp={self.shield_hp}]"
+        return f"[Ship: {side}, no assigned shield]"
 
 
 class Player:
     def __init__(self, name, num_ships, starter_df):
         self.name = name
-        self.fleet = [Ship() for _ in range(num_ships)]
+        self.fleet = [Ship(starter_side=STARTER_SHIP_SHIELDED_SIDE) for _ in range(num_ships)]
         self.draw_pile = build_starter_deck(starter_df)
         self.discard_pile = []
         self.hand = []
@@ -147,12 +160,14 @@ class Player:
 class Game:
     def __init__(self, player_names, starter_df, abilities_df):
         n = len(player_names)
-        if n <= 3:
-            starting_ships = 7
-        elif n <= 5:
+        if n == 2:
             starting_ships = 6
-        else:
+        elif n == 3:
             starting_ships = 5
+        elif n == 4:
+            starting_ships = 4
+        else:
+            starting_ships = 3
 
         self.players = [Player(name, starting_ships, starter_df) for name in player_names]
         self.abilities_pile = build_market_pile(abilities_df)
@@ -332,12 +347,20 @@ class Game:
             return False
 
         spent_bank, spent_hand = player.spend_currency(cost)
-        player.discard_pile.append(card)
+
+        if card.get("effect") == "add_1_ship_to_fleet":
+            # Reinforcement Shuttle: immediate fleet deploy on buy.
+            player.fleet.append(Ship(starter_side=STARTER_SHIP_UNSHIELDED_SIDE))
+            destination_note = "deployed to fleet (unshielded)"
+        else:
+            player.discard_pile.append(card)
+            destination_note = "to discard"
+
         self.market_display[slot_idx] = None
         self.refill_market_display()
         self.log.append(
             f"  {player.name} buys '{card['name']}' (cost {cost}) "
-            f"[spent bank:{spent_bank}, hand:{spent_hand}, bank left:{player.bank}]"
+            f"[spent bank:{spent_bank}, hand:{spent_hand}, bank left:{player.bank}; {destination_note}]"
         )
         return True
 
@@ -354,16 +377,11 @@ class Game:
         )
         if emergency:
             target.hand.remove(emergency)
-            if emergency.get("name") in ("Emergency Thrusters", "Aegis Countermeasure"):
-                self.trash_pile.append(emergency)
-                self.log.append(
-                    f"    -> {target.name} plays '{emergency['name']}' out of turn - rocket blocked (trashed)!"
-                )
-            else:
-                target.discard_pile.append(emergency)
-                self.log.append(
-                    f"    -> {target.name} plays '{emergency['name']}' out of turn - rocket blocked!"
-                )
+            # Reactive shields are one-time use.
+            self.trash_pile.append(emergency)
+            self.log.append(
+                f"    -> {target.name} plays '{emergency['name']}' out of turn - rocket blocked (trashed)!"
+            )
             return
 
         self.fire_rocket(attacker, target, effect)
@@ -373,42 +391,55 @@ class Game:
         Defender chooses where the rocket lands on their fleet.
         In simulation this choice is made by defensive AI to minimize damage.
         """
-        shielded = target.shielded_ships()
-        unshielded = target.unshielded_ships()
+        assigned_shielded = target.shielded_ships()
+        starter_shielded = [s for s in target.fleet if s.is_on_starter_shielded_side()]
+        starter_shielded_no_assigned = [s for s in starter_shielded if not s.has_shield()]
+        fully_unshielded = [
+            s for s in target.fleet if (not s.has_shield()) and (not s.is_on_starter_shielded_side())
+        ]
+
         weak_rocket = effect == "destroy_1_unshielded_ship"
         ignore_shields = effect == "destroy_1_ship_ignore_shields"
 
         def lowest_hp_shield_ship(ships):
             return min(ships, key=lambda s: s.shield_hp)
 
-        # Weak rockets are best deflected into a shielded ship if possible.
+        # Weak rockets are best routed into any shield layer first.
         if weak_rocket:
-            if shielded:
-                return lowest_hp_shield_ship(shielded)
-            if unshielded:
-                return unshielded[0]
+            if assigned_shielded:
+                return lowest_hp_shield_ship(assigned_shielded)
+            if starter_shielded_no_assigned:
+                return starter_shielded_no_assigned[0]
+            if fully_unshielded:
+                return fully_unshielded[0]
             return target.fleet[0]
 
-        # Piercing rockets can still be blocked by block_any shields.
+        # Piercing rockets can still be blocked by block_any assigned shields.
         if ignore_shields:
             block_any = [
                 s
-                for s in shielded
+                for s in assigned_shielded
                 if s.shield and s.shield.get("effect") == "assign_to_ship_block_any"
             ]
             if block_any:
                 return lowest_hp_shield_ship(block_any)
-            if unshielded:
-                return unshielded[0]
-            if shielded:
-                return lowest_hp_shield_ship(shielded)
+            if starter_shielded_no_assigned:
+                return starter_shielded_no_assigned[0]
+            if starter_shielded:
+                return starter_shielded[0]
+            if fully_unshielded:
+                return fully_unshielded[0]
+            if assigned_shielded:
+                return lowest_hp_shield_ship(assigned_shielded)
             return target.fleet[0]
 
-        # Normal rockets: route into shield first if possible.
-        if shielded:
-            return lowest_hp_shield_ship(shielded)
-        if unshielded:
-            return unshielded[0]
+        # Normal rockets: route into assigned shields, then starter-shielded side.
+        if assigned_shielded:
+            return lowest_hp_shield_ship(assigned_shielded)
+        if starter_shielded_no_assigned:
+            return starter_shielded_no_assigned[0]
+        if fully_unshielded:
+            return fully_unshielded[0]
         return target.fleet[0]
 
     def _estimate_hit_value(self, target, effect):
@@ -424,15 +455,22 @@ class Game:
         ignore_shields = effect == "destroy_1_ship_ignore_shields"
         landing_shield = landing_ship.shield
         landing_effect = landing_shield.get("effect", "") if landing_shield else ""
+        starter_side_shielded = landing_ship.is_on_starter_shielded_side()
 
-        if weak_rocket and landing_shield is not None:
+        assigned_shield_blocks = (
+            landing_shield is not None
+            and (weak_rocket or (not ignore_shields) or landing_effect == "assign_to_ship_block_any")
+        )
+
+        if assigned_shield_blocks:
             ship_loss = False
-        elif landing_shield is None:
-            ship_loss = True
-        elif ignore_shields:
-            ship_loss = landing_effect != "assign_to_ship_block_any"
+            starter_flip = False
+        elif starter_side_shielded:
+            ship_loss = False
+            starter_flip = True
         else:
-            ship_loss = False
+            ship_loss = True
+            starter_flip = False
 
         if ship_loss:
             value = 6.0 + (7 - target.ship_count) * 0.9
@@ -442,11 +480,13 @@ class Game:
                     value = 2.4
             return value
 
-        # Shield blocks. Weak rockets into shielded ships are fully negated.
-        if weak_rocket and landing_shield is not None:
-            return 0.0
-        if landing_shield is not None:
+        if assigned_shield_blocks:
+            if weak_rocket and landing_shield is not None:
+                return 0.0
             return 1.8 + (1.0 if landing_ship.shield_hp == 1 else 0.4)
+
+        if starter_flip:
+            return 2.0
         return 0.0
 
     def _pick_best_target(self, attacker, alive_opponents, effect):
@@ -503,10 +543,17 @@ class Game:
         hit_ship = self._choose_landing_ship(target, effect)
         landing_shield = hit_ship.shield
         landing_effect = landing_shield.get("effect", "") if landing_shield else ""
+        starter_side_shielded = hit_ship.is_on_starter_shielded_side()
+
+        if landing_shield:
+            impact_zone = "assigned_shield"
+        elif starter_side_shielded:
+            impact_zone = STARTER_SHIP_SHIELDED_SIDE
+        else:
+            impact_zone = STARTER_SHIP_UNSHIELDED_SIDE
 
         self.log.append(
-            f"    -> {target.name} chooses impact ship "
-            f"({'shielded' if landing_shield else 'unshielded'})"
+            f"    -> {target.name} chooses impact ship ({impact_zone})"
         )
 
         if weak_rocket and landing_shield is not None:
@@ -541,20 +588,27 @@ class Game:
                     f"    -> {target.name} shield destroyed! Ship survives. "
                     f"[{target.ship_count} ships, shield {shield_zone}]"
                 )
-        else:
-            ship_to_lose = hit_ship
-            if target.ship_count == 1 and target.last_stand:
-                target.last_stand = False
-                self.log.append(
-                    f"    -> {target.name} triggers Last Stand Protocol - final ship survives!"
-                )
-                return
-            ship_to_lose.strip_shield()
-            target.fleet.remove(ship_to_lose)
-            self.ships_destroyed_this_round += 1
+            return
+
+        if hit_ship.flip_starter_shield_side():
             self.log.append(
-                f"    -> {target.name} loses a ship! ({target.ship_count} remaining)"
+                f"    -> {target.name}'s ship flips to {STARTER_SHIP_UNSHIELDED_SIDE} and survives"
             )
+            return
+
+        ship_to_lose = hit_ship
+        if target.ship_count == 1 and target.last_stand:
+            target.last_stand = False
+            self.log.append(
+                f"    -> {target.name} triggers Last Stand Protocol - final ship survives!"
+            )
+            return
+        ship_to_lose.strip_shield()
+        target.fleet.remove(ship_to_lose)
+        self.ships_destroyed_this_round += 1
+        self.log.append(
+            f"    -> {target.name} loses a ship! ({target.ship_count} remaining)"
+        )
 
     def _apply_unavoidable_ship_wreckage(self, duel_players):
         """
@@ -641,8 +695,8 @@ class Game:
 
         effect = card.get("effect", "")
         player.hand.remove(card)
-        if effect == "add_1_ship_to_fleet":
-            # One-time use: Reinforcement Shuttle is trashed when played.
+        if effect in ("add_1_ship_to_fleet", "take_extra_turn"):
+            # One-time use specials are trashed when played.
             self.trash_pile.append(card)
         else:
             player.discard_pile.append(card)
@@ -684,9 +738,10 @@ class Game:
             )
 
         elif effect == "add_1_ship_to_fleet":
-            player.fleet.append(Ship())
+            # Legacy fallback: normally this card deploys directly when bought.
+            player.fleet.append(Ship(starter_side=STARTER_SHIP_UNSHIELDED_SIDE))
             self.log.append(
-                f"  {player.name} plays 'Reinforcement Shuttle' - "
+                f"  {player.name} plays 'Reinforcement Shuttle' from hand (legacy) - "
                 f"fleet grows to {player.ship_count} ships!"
             )
 
