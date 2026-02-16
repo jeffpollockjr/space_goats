@@ -88,7 +88,7 @@ This file contains two rule views:
 
 - Win check runs after each player turn and extra turn.
 - `Unavoidable Ship Wreckage`:
-- If exactly 2 players are alive at end of round and no ships were destroyed that round, each duelist loses 1 ship unavoidably.
+- If exactly 2 players are alive at end of round and no ships were destroyed that round, each duelist takes 1 unavoidable hit (shield HP down, starter side flips, or ship loss if already fully unshielded).
 - Draw tiebreak:
 - If mutual destruction happens (or no survivors at turn limit), player with highest `bank` wins.
 - If tied for highest `bank`, result stays `Draw`.
@@ -116,14 +116,14 @@ This file contains two rule views:
 - 3-card face-up market display,
 - trash pile.
 - Physical box target (current build):
-- 50 starter cards (10 per player x up to 5 players),
+- 45 starter cards (9 per player x up to 5 players),
 - 16 ship cards,
-- 38 market cards,
+- 43 market cards,
 - 104 total cards.
 
 ### Setup
 
-1. Give each player the same starter deck and shuffle it.
+1. Give each player the same 9-card starter deck and shuffle it.
 2. Set starting ships by player count:
 - 2 players: 6 ships each.
 - 3 players: 5 ships each.
@@ -174,7 +174,7 @@ This file contains two rule views:
 ### Duel Anti-Stall Rule
 
 - `Unavoidable Ship Wreckage` applies only when exactly 2 players remain.
-- After both players finish a round, if no ship was destroyed that round, both players lose 1 ship.
+- After both players finish a round, if no ship was destroyed that round, each player must take 1 unavoidable hit on their own fleet.
 
 ### Draw Resolution
 

@@ -2,7 +2,7 @@ import random
 from cards import build_starter_deck, build_market_pile
 
 HAND_SIZE = 5
-MARKET_DISPLAY_SIZE = 3
+MARKET_DISPLAY_SIZE = 4
 STARTER_SHIP_SHIELDED_SIDE = "starter_ship_shielded_side"
 STARTER_SHIP_UNSHIELDED_SIDE = "starter_ship_unshielded_side"
 
@@ -632,21 +632,20 @@ class Game:
         """
         Duel-only end-of-round pressure rule:
         if no ships were destroyed in the round, each of the 2 remaining players
-        loses 1 ship unavoidably.
+        suffers one unavoidable rocket-like hit.
         """
         self.log.append(
             "  !! Unavoidable Ship Wreckage: no ships destroyed this round, "
-            "each duelist loses 1 ship."
+            "each duelist suffers 1 unavoidable hit."
         )
         for player in duel_players:
             if not player.is_alive():
                 continue
-            ship_to_lose = player.unshielded_ships()[0] if player.unshielded_ships() else player.fleet[0]
-            ship_to_lose.strip_shield()
-            player.fleet.remove(ship_to_lose)
-            self.log.append(
-                f"    -> {player.name} loses 1 ship to wreckage! ({player.ship_count} remaining)"
-            )
+            # Apply one direct hit without reactive shield responses.
+            # This degrades defense by one step: assigned-shield HP, starter side,
+            # or (if fully unshielded) a ship loss.
+            self.log.append(f"    -> {player.name} must take 1 wreckage hit.")
+            self.fire_rocket(player, player, "destroy_1_ship")
 
     def _resolve_draw_by_bank(self, candidates):
         """
