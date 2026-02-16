@@ -100,13 +100,31 @@ class Player:
                 break
 
     def bank_currency_from_hand(self, max_cards=None):
-        currency_cards = [c for c in self.hand if c.get("type") == "currency"]
-        if max_cards is not None:
-            currency_cards = currency_cards[: max(0, max_cards)]
-        for card in currency_cards:
-            self.hand.remove(card)
+        scout_draws = 0
+        banked = 0
+        max_cards = None if max_cards is None else max(0, max_cards)
+
+        # Keep banking until no currency remains in hand.
+        # This allows Scout Ship draws to be banked immediately in the same step.
+        while True:
+            if max_cards is not None and banked >= max_cards:
+                break
+
+            idx = next((i for i, c in enumerate(self.hand) if c.get("type") == "currency"), None)
+            if idx is None:
+                break
+
+            card = self.hand.pop(idx)
             self.bank_pile.append(card)
-        return len(currency_cards)
+            banked += 1
+
+            if card.get("effect") == "gain_1_currency_draw_1":
+                before = len(self.hand)
+                self.draw_one()
+                if len(self.hand) > before:
+                    scout_draws += 1
+
+        return banked, scout_draws
 
     def discard_debris_from_hand(self):
         debris_cards = [c for c in self.hand if c.get("type") == "debris"]
@@ -278,9 +296,9 @@ class Game:
             return 3.5 + (1.0 if high_visible else 0.0)
 
         if effect == "trash_1_card_from_discard":
-            pool = [c for c in player.discard_pile if c is not card]
-            if not pool:
-                return -1.0
+            # Deck Purge can trash from either discard or hand.
+            # Include this card itself because it will be in discard after play.
+            pool = list(player.discard_pile) + [c for c in player.hand if c is not card] + [card]
             worst = min(pool, key=self._card_intrinsic_value)
             # Higher score when we can remove low-value cards (debris/currency).
             return 4.0 + max(0.0, 4.0 - self._card_intrinsic_value(worst)) * 0.8
@@ -757,16 +775,28 @@ class Game:
             self.log.append(f"  {player.name} plays 'Arms Dealer' - rearranged market deck")
 
         elif effect == "trash_1_card_from_discard":
-            pool = [c for c in player.discard_pile if c is not card]
-            if pool:
-                to_trash = min(pool, key=self._card_intrinsic_value)
-                player.discard_pile.remove(to_trash)
+            # Deck Purge can trash one card from either discard or hand.
+            candidates = []
+            for idx, c in enumerate(player.discard_pile):
+                candidates.append(("discard", idx, c))
+            for idx, c in enumerate(player.hand):
+                candidates.append(("hand", idx, c))
+
+            if candidates:
+                zone, idx, to_trash = min(
+                    candidates,
+                    key=lambda t: self._card_intrinsic_value(t[2]),
+                )
+                if zone == "discard":
+                    player.discard_pile.pop(idx)
+                else:
+                    player.hand.pop(idx)
                 self.trash_pile.append(to_trash)
                 self.log.append(
-                    f"  {player.name} plays 'Deck Purge' - trashes '{to_trash['name']}' from discard"
+                    f"  {player.name} plays 'Deck Purge' - trashes '{to_trash['name']}' from {zone}"
                 )
             else:
-                self.log.append(f"  {player.name} plays 'Deck Purge' (discard empty)")
+                self.log.append(f"  {player.name} plays 'Deck Purge' (no cards to trash)")
 
         elif effect == "trash_1_card_from_discard_draw_1":
             pool = [c for c in player.discard_pile if c is not card]
@@ -912,10 +942,11 @@ class Game:
             f"(deck:{len(player.draw_pile)} discard:{len(player.discard_pile)} bank:{player.bank})"
         )
 
-        banked = player.bank_currency_from_hand()
+        banked, scout_draws = player.bank_currency_from_hand()
         if banked:
+            draw_note = f" | scout draws: {scout_draws}" if scout_draws else ""
             self.log.append(
-                f"  {player.name} banks {banked} currency card(s) [bank: {player.bank}]"
+                f"  {player.name} banks {banked} currency card(s) [bank: {player.bank}{draw_note}]"
             )
 
         debris_discarded = player.discard_debris_from_hand()

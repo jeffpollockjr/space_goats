@@ -81,7 +81,7 @@ This file contains two rule views:
 - `negate_last_ship_loss_once`: enables one-time final-ship save.
 - `add_1_ship_to_fleet`: if played from hand (legacy fallback), adds one unshielded ship and the special is trashed.
 - `take_extra_turn`: grants one immediate extra turn after current turn and the special is trashed.
-- `trash_1_card_from_discard`: trashes one low-value card from your discard (engine auto-selects).
+- `trash_1_card_from_discard`: trashes one low-value card from your hand or discard (engine auto-selects).
 - `trash_1_card_from_discard_draw_1`: same as above, then draw 1.
 
 ### Endgame Rules
@@ -169,6 +169,7 @@ This file contains two rule views:
 - Trashed cards are removed from the game and do not return to deck/discard.
 - Warp Drive is one-time use (trashed after play).
 - Reinforcement Shuttle is effectively one-time use as a direct fleet deploy purchase.
+- Deck Purge trashes 1 card from your hand or discard (chosen by engine priority in simulation).
 
 ### Duel Anti-Stall Rule
 
