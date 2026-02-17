@@ -26,7 +26,7 @@ This file contains two rule views:
 - fleet of ships.
 4. Shared components:
 - `AbilitiesPile` (combined Rocket/Shield/Special market cards),
-- `market_display` of 3 face-up cards,
+- `market_display` of 4 face-up cards,
 - `trash_pile`.
 5. Fill empty market slots from `AbilitiesPile` whenever possible.
 
@@ -88,7 +88,7 @@ This file contains two rule views:
 
 - Win check runs after each player turn and extra turn.
 - `Unavoidable Ship Wreckage`:
-- If exactly 2 players are alive at end of round and no ships were destroyed that round, each duelist takes 1 unavoidable hit (shield HP down, starter side flips, or ship loss if already fully unshielded).
+- If exactly 2 players are alive at end of round and no ships were hit that round, each duelist takes 1 unavoidable hit (shield HP down, starter side flips, or ship loss if already fully unshielded).
 - Draw tiebreak:
 - If mutual destruction happens (or no survivors at turn limit), player with highest `bank` wins.
 - If tied for highest `bank`, result stays `Draw`.
@@ -131,7 +131,7 @@ This file contains two rule views:
 - 5 players: 3 ships each.
 3. Put all starting ships in play on their shielded side.
 4. Set each bank to 0.
-5. Build `AbilitiesPile`, shuffle, reveal 3 face-up market cards.
+5. Build `AbilitiesPile`, shuffle, reveal 4 face-up market cards.
 
 ### On Your Turn
 
@@ -174,7 +174,7 @@ This file contains two rule views:
 ### Duel Anti-Stall Rule
 
 - `Unavoidable Ship Wreckage` applies only when exactly 2 players remain.
-- After both players finish a round, if no ship was destroyed that round, each player must take 1 unavoidable hit on their own fleet.
+- After both players finish a round, if no ship was hit that round, each player must take 1 unavoidable hit on their own fleet.
 
 ### Draw Resolution
 
