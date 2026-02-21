@@ -1,7 +1,7 @@
 import random
 from cards import build_starter_deck, build_market_pile
 
-HAND_SIZE = 5
+HAND_SIZE = 3
 MARKET_DISPLAY_SIZE = 4
 STARTER_SHIP_SHIELDED_SIDE = "starter_ship_shielded_side"
 STARTER_SHIP_UNSHIELDED_SIDE = "starter_ship_unshielded_side"
@@ -596,12 +596,9 @@ class Game:
                 )
             else:
                 if destroyed_shield is not None:
-                    if destroyed_shield.get("name") == "Hull Plating":
-                        target.discard_pile.append(destroyed_shield)
-                        shield_zone = "discarded"
-                    else:
-                        self.trash_pile.append(destroyed_shield)
-                        shield_zone = "trashed"
+                    # Assigned shields are trashed when broken.
+                    self.trash_pile.append(destroyed_shield)
+                    shield_zone = "trashed"
                 else:
                     shield_zone = "removed"
                 self.log.append(
@@ -633,11 +630,11 @@ class Game:
     def _apply_unavoidable_ship_wreckage(self, duel_players):
         """
         Duel-only end-of-round pressure rule:
-        if no ships were hit in the round, each of the 2 remaining players
+        if no ships were destroyed in the round, each of the 2 remaining players
         suffers one unavoidable rocket-like hit.
         """
         self.log.append(
-            "  !! Unavoidable Ship Wreckage: no ships were hit this round, "
+            "  !! Unavoidable Ship Wreckage: no ships were destroyed this round, "
             "each duelist suffers 1 unavoidable hit."
         )
         for player in duel_players:
@@ -1028,10 +1025,10 @@ class Game:
                     return self._resolve_draw_by_bank(alive_before_extra)
 
             # End-of-round duel pressure:
-            # when exactly 2 players remain and no ships were hit this round,
+            # when exactly 2 players remain and no ships were destroyed this round,
             # both players take 1 unavoidable hit.
             alive = [p for p in self.players if p.is_alive()]
-            if len(alive) == 2 and self.ship_hits_this_round == 0:
+            if len(alive) == 2 and self.ships_destroyed_this_round == 0:
                 duel_before_wreckage = alive[:]
                 self._apply_unavoidable_ship_wreckage(alive)
                 alive = [p for p in self.players if p.is_alive()]

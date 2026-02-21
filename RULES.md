@@ -32,7 +32,7 @@ This file contains two rule views:
 
 ### Turn Flow
 
-1. Draw to 5 cards.
+1. Draw to 4 cards.
 2. Bank all currency cards from hand (current engine behavior).
 3. Discard all debris cards from hand.
 4. Choose exactly 1 action:
@@ -67,8 +67,7 @@ This file contains two rule views:
 - Weak rocket interactions:
 - `destroy_1_unshielded_ship` can be absorbed by assigned shields and can flip a starter shielded ship instead of destroying it.
 - On assigned shield destruction from hits:
-- `Hull Plating` goes to that player's `discard_pile`.
-- Other destroyed assigned shields go to `trash_pile`.
+- Destroyed assigned shields go to `trash_pile`.
 - If a ship has no blocking assigned shield but is on `starter_ship_shielded_side`, it flips to `starter_ship_unshielded_side` and survives.
 - If a ship is destroyed while `Last Stand Protocol` is active and that ship is the final ship, the ship survives once and `last_stand` is consumed.
 - `strip_all_shields_one_opponent` removes assigned shields from all ships of one opponent (does not change starter ship side).
@@ -88,7 +87,7 @@ This file contains two rule views:
 
 - Win check runs after each player turn and extra turn.
 - `Unavoidable Ship Wreckage`:
-- If exactly 2 players are alive at end of round and no ships were hit that round, each duelist takes 1 unavoidable hit (shield HP down, starter side flips, or ship loss if already fully unshielded).
+- If exactly 2 players are alive at end of round and no ships were destroyed that round, each duelist takes 1 unavoidable hit (shield HP down, starter side flips, or ship loss if already fully unshielded).
 - Draw tiebreak:
 - If mutual destruction happens (or no survivors at turn limit), player with highest `bank` wins.
 - If tied for highest `bank`, result stays `Draw`.
@@ -112,8 +111,10 @@ This file contains two rule views:
 - banked currency pile,
 - fleet of ships.
 - Shared area:
-- `AbilitiesPile`,
-- 3-card face-up market display,
+- Rocket market draw pile,
+- Shield market draw pile,
+- Specials market draw pile,
+- 4-card face-up market display (one from each market),
 - trash pile.
 - Physical box target (current build):
 - 45 starter cards (9 per player x up to 5 players),
@@ -135,7 +136,7 @@ This file contains two rule views:
 
 ### On Your Turn
 
-1. Draw until you have 5 cards in hand.
+1. Draw until you have 4 cards in hand.
 2. Move currency cards from hand to your bank.
 3. Discard debris in hand.
 4. Take exactly one action:
@@ -160,7 +161,7 @@ This file contains two rule views:
 - The defending player chooses which of their ships the rocket lands on.
 - Ships on shielded starter side absorb one hit by flipping to unshielded side.
 - Assigned shields absorb hits first.
-- `Hull Plating` returns to discard when broken; other broken assigned shields are trashed.
+- Broken assigned shields are trashed.
 - Reactive shield cards from hand block a rocket, then are trashed.
 - Some rockets bypass normal shields.
 
@@ -174,7 +175,7 @@ This file contains two rule views:
 ### Duel Anti-Stall Rule
 
 - `Unavoidable Ship Wreckage` applies only when exactly 2 players remain.
-- After both players finish a round, if no ship was hit that round, each player must take 1 unavoidable hit on their own fleet.
+- After both players finish a round, if no ship was destroyed that round, each player must take 1 unavoidable hit on their own fleet.
 
 ### Draw Resolution
 
