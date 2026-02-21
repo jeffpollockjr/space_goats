@@ -35,10 +35,10 @@ def main():
         ["RK03", "Piercing Rocket", "rocket", 3, "destroy_1_ship_ignore_shields", "Bypasses normal shields", 3],
         ["RK04", "EMP Rocket", "rocket", 3, "strip_all_shields_one_opponent", "Removes all shields, no direct ship loss", 2],
         ["RK05", "Barrage Rocket", "rocket", 4, "each_opponent_blocks_or_loses_ship", "Hits every opponent", 2],
-        ["RK06", "Salvo Rocket", "rocket", 4, "destroy_up_to_2_ships", "Two hits in one action", 2],
+        ["RK06", "Salvo Rocket", "rocket", 4, "destroy_up_to_2_ships_then_lose_one_1_bank_currency", "Two hits, then lose 1 bank currency", 2],
         ["RK07", "Shatter Rocket", "rocket", 3, "destroy_1_ship", "Reliable mid-tier damage", 3],
         ["RK08", "Overload Barrage", "rocket", 5, "each_opponent_blocks_or_loses_ship", "High-cost table pressure", 1],
-        ["RK09", "Twin Salvo", "rocket", 5, "destroy_up_to_2_ships", "Premium double strike", 1],
+        ["RK09", "Twin Salvo", "rocket", 5, "destory_up_to_2_ships", "Premium double strike", 1],
     ]
     for row in rocket_rows:
         ws_rockets.append(row)
@@ -47,7 +47,7 @@ def main():
     clear_sheet_rows(ws_shields)
     shield_rows = [
         ["SH01", "Hull Plating", "shield", 2, "assign_to_ship_block_1", "Blocks 1 rocket then discarded", 2],
-        ["SH02", "Decoy Drone", "shield", 2, "assign_to_ship_block_1", "Light defensive layer", 3],
+        ["SH02", "Decoy Drone", "shield", 2, "assign_to_ship_block_1_draw_1_discard_1", "Assign: block 1; immediately draw 1 then discard 1", 3],
         ["SH03", "Emergency Thrusters", "shield", 2, "reactive_block_1_rocket", "Reactive block from hand", 3],
         ["SH04", "Reinforced Hull", "shield", 3, "assign_to_ship_block_2", "Blocks 2 rockets then discarded", 2],
         ["SH05", "Phase Shield", "shield", 4, "assign_to_ship_block_any", "Can block piercing rockets", 2],

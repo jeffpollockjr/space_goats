@@ -64,6 +64,7 @@ class Player:
         self.bank_pile = []
         self.last_stand = False
         self.extra_turn = False
+        self.skip_next_turn = False
 
     def is_alive(self):
         return len(self.fleet) > 0
@@ -225,11 +226,16 @@ class Game:
                 "strip_all_shields_one_opponent": 7.8,
                 "each_opponent_blocks_or_loses_ship": 10.0,
                 "destroy_up_to_2_ships": 10.5,
+                "destory_up_to_2_ships": 10.5,
+                "destroy_up_to_2_ships_then_lose_one_1_bank_currency": 9.3,
                 "destroy_1_unshielded_ship": 6.0,
+                "skip_next_turn": 4.8,
+                "skip_next_buy": 4.8,
             }.get(effect, 7.5)
         if card_type == "shield":
             return {
                 "assign_to_ship_block_1": 6.2,
+                "assign_to_ship_block_1_draw_1_discard_1": 6.8,
                 "assign_to_ship_block_2": 8.2,
                 "assign_to_ship_block_any": 9.0,
                 "reactive_block_1_rocket": 7.0,
@@ -243,6 +249,8 @@ class Game:
                 "negate_last_ship_loss_once": 7.5,
                 "add_1_ship_to_fleet": 8.2,
                 "take_extra_turn": 9.8,
+                "skip_next_turn": 1.0,
+                "skip_next_buy": 1.0,
             }.get(effect, 5.0)
         if card_type == "currency":
             return 2.0
@@ -310,6 +318,9 @@ class Game:
                 return 1.0
             worst = min(pool, key=self._card_intrinsic_value)
             return 5.0 + max(0.0, 4.0 - self._card_intrinsic_value(worst)) * 0.8
+
+        if effect in ("skip_next_turn", "skip_next_buy"):
+            return -2.0
 
         return 2.0
 
@@ -532,12 +543,21 @@ class Game:
                 sum(self._estimate_hit_value(opp, "destroy_1_ship") for opp in alive_opponents)
                 + 1.2 * len(alive_opponents)
             )
-        if effect == "destroy_up_to_2_ships":
+        if effect in ("destroy_up_to_2_ships", "destory_up_to_2_ships"):
             hits = sorted(
                 [self._estimate_hit_value(opp, "destroy_1_ship") for opp in alive_opponents],
                 reverse=True,
             )
             return sum(hits[:2]) + 1.2
+        if effect == "destroy_up_to_2_ships_then_lose_one_1_bank_currency":
+            hits = sorted(
+                [self._estimate_hit_value(opp, "destroy_1_ship") for opp in alive_opponents],
+                reverse=True,
+            )
+            bank_penalty = 0.9 if player.bank > 0 else 1.6
+            return sum(hits[:2]) + 0.2 - bank_penalty
+        if effect in ("skip_next_turn", "skip_next_buy"):
+            return max(self._estimate_hit_value(opp, "destroy_1_ship") for opp in alive_opponents) * 0.4 + 1.4
         if effect == "strip_all_shields_one_opponent":
             return max(self._estimate_hit_value(opp, effect) for opp in alive_opponents) + 0.6
         if effect == "destroy_1_weakest_ship":
@@ -672,13 +692,19 @@ class Game:
         if card.get("type") != "shield":
             return -999.0
         effect = card.get("effect", "")
-        if effect not in ("assign_to_ship_block_1", "assign_to_ship_block_2", "assign_to_ship_block_any"):
+        if effect not in (
+            "assign_to_ship_block_1",
+            "assign_to_ship_block_1_draw_1_discard_1",
+            "assign_to_ship_block_2",
+            "assign_to_ship_block_any",
+        ):
             return -999.0
         unshielded = len(player.unshielded_ships())
         if unshielded <= 0:
             return -2.0
         base = {
             "assign_to_ship_block_1": 5.0,
+            "assign_to_ship_block_1_draw_1_discard_1": 5.8,
             "assign_to_ship_block_2": 7.2,
             "assign_to_ship_block_any": 8.0,
         }.get(effect, 4.0)
@@ -809,6 +835,12 @@ class Game:
                 self.log.append(f"  {player.name} plays 'Deep Clean' (discard empty, draws 1)")
             player.draw_one()
 
+        elif effect in ("skip_next_turn", "skip_next_buy"):
+            player.skip_next_turn = True
+            self.log.append(
+                f"  {player.name} applies a skip effect and will skip their next turn"
+            )
+
         else:
             self.log.append(f"  {player.name} plays '{card['name']}' (no effect handler)")
 
@@ -830,6 +862,20 @@ class Game:
                 f"  {player.name} assigns '{card['name']}' "
                 f"({len(player.shielded_ships())}/{player.ship_count} shielded)"
             )
+            if card.get("effect") == "assign_to_ship_block_1_draw_1_discard_1":
+                before = len(player.hand)
+                player.draw_one()
+                drew = len(player.hand) > before
+                discarded_name = "none"
+                if player.hand:
+                    to_discard = min(player.hand, key=self._card_intrinsic_value)
+                    player.hand.remove(to_discard)
+                    player.discard_pile.append(to_discard)
+                    discarded_name = to_discard["name"]
+                draw_note = "draws 1" if drew else "draws 0"
+                self.log.append(
+                    f"    -> Decoy Drone resolves immediately: {draw_note}, discards '{discarded_name}'"
+                )
         else:
             player.discard_pile.append(card)
             self.log.append(
@@ -858,7 +904,7 @@ class Game:
             for opp in alive_opponents:
                 self._fire_at(player, opp, effect)
 
-        elif effect == "destroy_up_to_2_ships":
+        elif effect in ("destroy_up_to_2_ships", "destory_up_to_2_ships"):
             self.log.append(f"  {player.name} fires '{card['name']}' (salvo - up to 2 hits)")
             target = self._pick_best_target(player, alive_opponents, "destroy_1_ship")
             self._fire_at(player, target, "destroy_1_ship")
@@ -866,6 +912,34 @@ class Game:
             if alive_opponents:
                 target2 = self._pick_best_target(player, alive_opponents, "destroy_1_ship")
                 self._fire_at(player, target2, "destroy_1_ship")
+
+        elif effect == "destroy_up_to_2_ships_then_lose_one_1_bank_currency":
+            self.log.append(f"  {player.name} fires '{card['name']}' (salvo+ - up to 2 hits)")
+            target = self._pick_best_target(player, alive_opponents, "destroy_1_ship")
+            self._fire_at(player, target, "destroy_1_ship")
+            alive_opponents = [p for p in alive_opponents if p.is_alive()]
+            if alive_opponents:
+                target2 = self._pick_best_target(player, alive_opponents, "destroy_1_ship")
+                self._fire_at(player, target2, "destroy_1_ship")
+            if player.bank_pile:
+                spent_bank = player.bank_pile.pop()
+                player.discard_pile.append(spent_bank)
+                self.log.append(
+                    f"    -> Salvo drawback: {player.name} loses 1 bank currency"
+                )
+            else:
+                self.log.append(
+                    f"    -> Salvo drawback: {player.name} has no bank currency to lose"
+                )
+
+        elif effect in ("skip_next_turn", "skip_next_buy"):
+            target = self._pick_best_target(player, alive_opponents, "destroy_1_ship")
+            if target is not None:
+                target.skip_next_turn = True
+                self.attack_counts[target.name] += 1
+                self.log.append(
+                    f"  {player.name} forces {target.name} to skip their next turn"
+                )
 
         elif effect == "strip_all_shields_one_opponent":
             target = self._pick_best_target(player, alive_opponents, effect)
@@ -1000,7 +1074,11 @@ class Game:
                     continue
 
                 alive_before_turn = [p for p in self.players if p.is_alive()]
-                self.play_turn(player)
+                if player.skip_next_turn:
+                    player.skip_next_turn = False
+                    self.log.append(f"  {player.name} skips this turn.")
+                else:
+                    self.play_turn(player)
 
                 alive = [p for p in self.players if p.is_alive()]
                 if len(alive) == 1:
@@ -1010,11 +1088,18 @@ class Game:
                     self.log.append(f"\nMutual destruction on turn {self.turn_number}.")
                     return self._resolve_draw_by_bank(alive_before_turn)
 
+                alive_before_extra = [p for p in self.players if p.is_alive()]
                 if player.extra_turn and player.is_alive():
                     player.extra_turn = False
-                    self.log.append(f"  * {player.name} takes an extra turn (Warp Drive)!")
-                    alive_before_extra = [p for p in self.players if p.is_alive()]
-                    self.play_turn(player)
+                    if player.skip_next_turn:
+                        player.skip_next_turn = False
+                        self.log.append(
+                            f"  * {player.name} loses their extra turn (skip_next_turn)."
+                        )
+                    else:
+                        self.log.append(f"  * {player.name} takes an extra turn (Warp Drive)!")
+                        alive_before_extra = [p for p in self.players if p.is_alive()]
+                        self.play_turn(player)
 
                 alive = [p for p in self.players if p.is_alive()]
                 if len(alive) == 1:

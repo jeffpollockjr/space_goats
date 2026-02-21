@@ -42,6 +42,7 @@ This file contains two rule views:
 - play 1 special,
 - or pass if no valid action.
 5. Hand persists between turns. There is no end-of-turn full-hand discard.
+6. If a player has `skip_next_turn`, they skip their next full turn (or queued extra turn), then clear the flag.
 
 ### Economy and Buying
 
@@ -68,6 +69,9 @@ This file contains two rule views:
 - `destroy_1_unshielded_ship` can be absorbed by assigned shields and can flip a starter shielded ship instead of destroying it.
 - On assigned shield destruction from hits:
 - Destroyed assigned shields go to `trash_pile`.
+- `Decoy Drone` (`assign_to_ship_block_1_draw_1_discard_1`) resolves immediately on assignment: draw 1, then discard 1.
+- `Salvo Rocket` (`destroy_up_to_2_ships_then_lose_one_1_bank_currency`) performs up to two hits, then the attacker loses 1 bank currency (if available).
+- `Twin Salvo` (`destory_up_to_2_ships`) performs up to two hits with no bank-currency drawback.
 - If a ship has no blocking assigned shield but is on `starter_ship_shielded_side`, it flips to `starter_ship_unshielded_side` and survives.
 - If a ship is destroyed while `Last Stand Protocol` is active and that ship is the final ship, the ship survives once and `last_stand` is consumed.
 - `strip_all_shields_one_opponent` removes assigned shields from all ships of one opponent (does not change starter ship side).
@@ -164,6 +168,9 @@ This file contains two rule views:
 - Broken assigned shields are trashed.
 - Reactive shield cards from hand block a rocket, then are trashed.
 - Some rockets bypass normal shields.
+- Salvo Rocket now has a drawback: after resolving its two hits, you lose 1 bank currency if possible.
+- Twin Salvo remains the clean double-strike (no bank-currency loss).
+- Decoy Drone draws 1 then discards 1 immediately when assigned.
 
 ### Specials and Trashing
 
