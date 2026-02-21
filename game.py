@@ -1,7 +1,7 @@
 import random
 from cards import build_starter_deck, build_market_pile
 
-HAND_SIZE = 3
+HAND_SIZE = 4
 MARKET_DISPLAY_SIZE = 4
 STARTER_SHIP_SHIELDED_SIDE = "starter_ship_shielded_side"
 STARTER_SHIP_UNSHIELDED_SIDE = "starter_ship_unshielded_side"
