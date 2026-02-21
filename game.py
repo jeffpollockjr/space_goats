@@ -221,6 +221,7 @@ class Game:
         if card_type == "rocket":
             return {
                 "destroy_1_ship": 8.0,
+                "destroy_1_ship_then_discard_1_random_card_from_hand": 7.4,
                 "destroy_1_weakest_ship": 8.5,
                 "destroy_1_ship_ignore_shields": 9.2,
                 "strip_all_shields_one_opponent": 7.8,
@@ -231,6 +232,7 @@ class Game:
                 "destroy_1_unshielded_ship": 6.0,
                 "skip_next_turn": 4.8,
                 "skip_next_buy": 4.8,
+                "each_opponent_blocks_2_or_loses_2_ships_and_you_skip_next_turn": 11.2,
             }.get(effect, 7.5)
         if card_type == "shield":
             return {
@@ -239,6 +241,7 @@ class Game:
                 "assign_to_ship_block_2": 8.2,
                 "assign_to_ship_block_any": 9.0,
                 "reactive_block_1_rocket": 7.0,
+                "reactive_block_1_rocket_then_trash_1_card_from_hand_or_discard": 7.6,
                 "cancel_1_rocket_targeting_you": 7.0,
             }.get(effect, 5.5)
         if card_type == "special":
@@ -401,7 +404,12 @@ class Game:
             (
                 c
                 for c in target.hand
-                if c.get("effect") in ("reactive_block_1_rocket", "cancel_1_rocket_targeting_you")
+                if c.get("effect") in (
+                    "reactive_block_1_rocket",
+                    "reactive_block_1_rocket_then_trash_1_card_from_hand_or_discard",
+                    "reactive_block_1_rocket_then_trash_1_card_from_hand_or_discards",
+                    "cancel_1_rocket_targeting_you",
+                )
             ),
             None,
         )
@@ -412,6 +420,31 @@ class Game:
             self.log.append(
                 f"    -> {target.name} plays '{emergency['name']}' out of turn - rocket blocked (trashed)!"
             )
+
+            if emergency.get("effect") in (
+                "reactive_block_1_rocket_then_trash_1_card_from_hand_or_discard",
+                "reactive_block_1_rocket_then_trash_1_card_from_hand_or_discards",
+            ):
+                candidates = []
+                for idx, c in enumerate(target.hand):
+                    candidates.append(("hand", idx, c))
+                for idx, c in enumerate(target.discard_pile):
+                    candidates.append(("discard", idx, c))
+
+                if candidates:
+                    zone, idx, to_trash = min(candidates, key=lambda t: self._card_intrinsic_value(t[2]))
+                    if zone == "hand":
+                        target.hand.pop(idx)
+                    else:
+                        target.discard_pile.pop(idx)
+                    self.trash_pile.append(to_trash)
+                    self.log.append(
+                        f"    -> Aegis cleanup: {target.name} trashes '{to_trash['name']}' from {zone}"
+                    )
+                else:
+                    self.log.append(
+                        f"    -> Aegis cleanup: {target.name} has no card in hand/discard to trash"
+                    )
             return
 
         self.fire_rocket(attacker, target, effect)
@@ -558,6 +591,20 @@ class Game:
             return sum(hits[:2]) + 0.2 - bank_penalty
         if effect in ("skip_next_turn", "skip_next_buy"):
             return max(self._estimate_hit_value(opp, "destroy_1_ship") for opp in alive_opponents) * 0.4 + 1.4
+        if effect == "each_opponent_blocks_2_or_loses_2_ships_and_you_skip_next_turn":
+            total = 0.0
+            for opp in alive_opponents:
+                hit_value = self._estimate_hit_value(opp, "destroy_1_ship")
+                total += hit_value + max(0.8, hit_value * 0.8)
+            self_penalty = 2.4 + (1.2 if player.ship_count <= 2 else 0.0)
+            return total - self_penalty
+        if effect == "destroy_1_ship_then_discard_1_random_card_from_hand":
+            hit = max(self._estimate_hit_value(opp, "destroy_1_ship") for opp in alive_opponents)
+            other_cards = [c for c in player.hand if c is not card]
+            if not other_cards:
+                return hit
+            avg_loss = sum(self._card_intrinsic_value(c) for c in other_cards) / len(other_cards)
+            return hit - max(0.0, avg_loss) * 0.35
         if effect == "strip_all_shields_one_opponent":
             return max(self._estimate_hit_value(opp, effect) for opp in alive_opponents) + 0.6
         if effect == "destroy_1_weakest_ship":
@@ -939,6 +986,33 @@ class Game:
                 self.attack_counts[target.name] += 1
                 self.log.append(
                     f"  {player.name} forces {target.name} to skip their next turn"
+                )
+
+        elif effect == "each_opponent_blocks_2_or_loses_2_ships_and_you_skip_next_turn":
+            self.log.append(f"  {player.name} fires '{card['name']}' at ALL opponents (2 hits each)")
+            for opp in list(alive_opponents):
+                if not opp.is_alive():
+                    continue
+                self._fire_at(player, opp, "destroy_1_ship")
+                if opp.is_alive():
+                    self._fire_at(player, opp, "destroy_1_ship")
+            player.skip_next_turn = True
+            self.log.append(f"    -> Overload drawback: {player.name} will skip their next turn")
+
+        elif effect == "destroy_1_ship_then_discard_1_random_card_from_hand":
+            target = self._pick_best_target(player, alive_opponents, "destroy_1_ship")
+            self.log.append(f"  {player.name} fires '{card['name']}' at {target.name}")
+            self._fire_at(player, target, "destroy_1_ship")
+            if player.hand:
+                discarded = random.choice(player.hand)
+                player.hand.remove(discarded)
+                player.discard_pile.append(discarded)
+                self.log.append(
+                    f"    -> Shatter drawback: {player.name} discards random card '{discarded['name']}'"
+                )
+            else:
+                self.log.append(
+                    f"    -> Shatter drawback: {player.name} has no card in hand to discard"
                 )
 
         elif effect == "strip_all_shields_one_opponent":

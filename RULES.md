@@ -61,7 +61,7 @@ This file contains two rule views:
 
 - Rocket targeting is player-level first (attacker chooses opponent), then defender chooses which ship in their fleet the rocket lands on.
 - Reactive block check occurs before rocket resolution:
-- A defender may auto-play one card in hand with effect `reactive_block_1_rocket` or `cancel_1_rocket_targeting_you`.
+- A defender may auto-play one card in hand with effect `reactive_block_1_rocket`, `reactive_block_1_rocket_then_trash_1_card_from_hand_or_discard`, or `cancel_1_rocket_targeting_you`.
 - All reactive blockers are one-time use and go to `trash_pile` after blocking.
 - Piercing interactions:
 - `destroy_1_ship_ignore_shields` bypasses assigned shields except `assign_to_ship_block_any`.
@@ -72,6 +72,9 @@ This file contains two rule views:
 - `Decoy Drone` (`assign_to_ship_block_1_draw_1_discard_1`) resolves immediately on assignment: draw 1, then discard 1.
 - `Salvo Rocket` (`destroy_up_to_2_ships_then_lose_one_1_bank_currency`) performs up to two hits, then the attacker loses 1 bank currency (if available).
 - `Twin Salvo` (`destory_up_to_2_ships`) performs up to two hits with no bank-currency drawback.
+- `Overload Barrage` (`each_opponent_blocks_2_or_loses_2_ships_and_you_skip_next_turn`) applies 2 hit checks to every opponent, then you skip your next turn.
+- `Shatter Rocket` (`destroy_1_ship_then_discard_1_random_card_from_hand`) destroys 1 ship, then the attacker discards 1 random card from hand.
+- `Aegis Countermeasure` (`reactive_block_1_rocket_then_trash_1_card_from_hand_or_discard`) blocks reactively, then trashes 1 card from the defender hand/discard (engine picks lowest-value card).
 - If a ship has no blocking assigned shield but is on `starter_ship_shielded_side`, it flips to `starter_ship_unshielded_side` and survives.
 - If a ship is destroyed while `Last Stand Protocol` is active and that ship is the final ship, the ship survives once and `last_stand` is consumed.
 - `strip_all_shields_one_opponent` removes assigned shields from all ships of one opponent (does not change starter ship side).
@@ -85,7 +88,7 @@ This file contains two rule views:
 - `add_1_ship_to_fleet`: if played from hand (legacy fallback), adds one unshielded ship and the special is trashed.
 - `take_extra_turn`: grants one immediate extra turn after current turn and the special is trashed.
 - `trash_1_card_from_discard`: trashes one low-value card from your hand or discard (engine auto-selects).
-- `trash_1_card_from_discard_draw_1`: same as above, then draw 1.
+- `trash_1_card_from_discard_draw_1`: trashes one low-value card from your discard only, then draw 1.
 
 ### Endgame Rules
 
@@ -115,10 +118,8 @@ This file contains two rule views:
 - banked currency pile,
 - fleet of ships.
 - Shared area:
-- Rocket market draw pile,
-- Shield market draw pile,
-- Specials market draw pile,
-- 4-card face-up market display (one from each market),
+- `AbilitiesPile` (combined Rocket/Shield/Special market deck),
+- 4-card face-up market display (refilled from `AbilitiesPile`),
 - trash pile.
 - Physical box target (current build):
 - 45 starter cards (9 per player x up to 5 players),
@@ -167,10 +168,13 @@ This file contains two rule views:
 - Assigned shields absorb hits first.
 - Broken assigned shields are trashed.
 - Reactive shield cards from hand block a rocket, then are trashed.
+- Aegis Countermeasure additionally trashes 1 card from your hand/discard after it blocks.
 - Some rockets bypass normal shields.
 - Salvo Rocket now has a drawback: after resolving its two hits, you lose 1 bank currency if possible.
 - Twin Salvo remains the clean double-strike (no bank-currency loss).
+- Overload Barrage pressures all opponents with two hits each, but you skip your next turn.
 - Decoy Drone draws 1 then discards 1 immediately when assigned.
+- Shatter Rocket destroys 1 ship, then the attacker discards 1 random card from hand.
 
 ### Specials and Trashing
 

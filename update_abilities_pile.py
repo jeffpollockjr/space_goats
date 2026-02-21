@@ -36,8 +36,8 @@ def main():
         ["RK04", "EMP Rocket", "rocket", 3, "strip_all_shields_one_opponent", "Removes all shields, no direct ship loss", 2],
         ["RK05", "Barrage Rocket", "rocket", 4, "each_opponent_blocks_or_loses_ship", "Hits every opponent", 2],
         ["RK06", "Salvo Rocket", "rocket", 4, "destroy_up_to_2_ships_then_lose_one_1_bank_currency", "Two hits, then lose 1 bank currency", 2],
-        ["RK07", "Shatter Rocket", "rocket", 3, "destroy_1_ship", "Reliable mid-tier damage", 3],
-        ["RK08", "Overload Barrage", "rocket", 5, "each_opponent_blocks_or_loses_ship", "High-cost table pressure", 1],
+        ["RK07", "Shatter Rocket", "rocket", 3, "destroy_1_ship_then_discard_1_random_card_from_hand", "Destroy 1 ship, then discard 1 random card from hand", 3],
+        ["RK08", "Overload Barrage", "rocket", 5, "each_opponent_blocks_2_or_loses_2_ships_and_you_skip_next_turn", "Each opponent faces 2 hits; you skip next turn", 1],
         ["RK09", "Twin Salvo", "rocket", 5, "destory_up_to_2_ships", "Premium double strike", 1],
     ]
     for row in rocket_rows:
@@ -51,7 +51,7 @@ def main():
         ["SH03", "Emergency Thrusters", "shield", 2, "reactive_block_1_rocket", "Reactive block from hand", 3],
         ["SH04", "Reinforced Hull", "shield", 3, "assign_to_ship_block_2", "Blocks 2 rockets then discarded", 2],
         ["SH05", "Phase Shield", "shield", 4, "assign_to_ship_block_any", "Can block piercing rockets", 2],
-        ["SH06", "Aegis Countermeasure", "shield", 3, "reactive_block_1_rocket", "Reactive shield tech", 1],
+        ["SH06", "Aegis Countermeasure", "shield", 3, "reactive_block_1_rocket_then_trash_1_card_from_hand_or_discard", "Reactive block, then trash 1 from hand or discard", 1],
         ["SH07", "Bulwark Plating", "shield", 4, "assign_to_ship_block_2", "Heavy protection", 1],
     ]
     for row in shield_rows:
